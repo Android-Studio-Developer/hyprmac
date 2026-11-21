@@ -1,0 +1,4 @@
+module CLua {
+    header "hm_lua.h"
+    export *
+}
