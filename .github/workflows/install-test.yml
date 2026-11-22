@@ -1,0 +1,38 @@
+name: install-test
+
+# Runs the one-line installer on a clean Windows machine, the way users do.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: installer URL
+        default: https://kelus.org/hyprwin.ps1
+
+jobs:
+  install:
+    runs-on: windows-latest
+    steps:
+      - name: Install with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $PSVersionTable.PSVersion
+          & ([scriptblock]::Create((irm "${{ inputs.url }}"))) -Start -Startup
+      - name: Check the install
+        shell: powershell
+        run: |
+          $dir = "$env:LOCALAPPDATA\Programs\hyprwin"
+          if (-not (Test-Path "$dir\hyprwin.exe")) { throw 'hyprwin.exe missing' }
+          if (-not (Test-Path "$([Environment]::GetFolderPath('Programs'))\hyprwin.lnk")) { throw 'Start menu link missing' }
+          if (-not (Test-Path "$([Environment]::GetFolderPath('Startup'))\hyprwin.lnk")) { throw 'startup link missing' }
+          if (-not ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' -contains $dir)) { throw 'not on PATH' }
+          Start-Sleep 5
+          if (-not (Get-Process hyprwin -ErrorAction SilentlyContinue)) { throw 'hyprwin not running' }
+          & "$dir\hyprwinctl.exe" version
+          & "$dir\hyprwinctl.exe" -j clients
+      - name: Update over a running copy, then uninstall
+        shell: powershell
+        run: |
+          & ([scriptblock]::Create((irm "${{ inputs.url }}")))
+          & ([scriptblock]::Create((irm "${{ inputs.url }}"))) -Uninstall
+          if (Test-Path "$env:LOCALAPPDATA\Programs\hyprwin") { throw 'still installed' }
+          if (Get-Process hyprwin -ErrorAction SilentlyContinue) { throw 'still running' }
