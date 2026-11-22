@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hyprwin.Core/Hyprwin.Core.csproj" />
+    <Project Path="src/Hyprwin/Hyprwin.csproj" />
+    <Project Path="src/hyprwinctl/hyprwinctl.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hyprwin.Core.Tests/Hyprwin.Core.Tests.csproj" />
+  </Folder>
+</Solution>

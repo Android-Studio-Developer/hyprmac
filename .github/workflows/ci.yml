@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lua shim in sync with shared/hl-prelude.lua
+        run: ./scripts/sync-prelude.sh && git diff --exit-code Sources/HyprLua/Prelude.swift
+      - name: Unit tests
+        run: swift test
+      - name: Build app bundle
+        run: ./scripts/bundle.sh
+      - name: Default config is clean
+        run: |
+          .build/release/hyprmac --print-default-config > /tmp/default.conf
+          .build/release/hyprmac --check-config /tmp/default.conf
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Unit tests
+        run: dotnet test tests/Hyprwin.Core.Tests
+      - name: Publish
+        run: ./publish.ps1
+      - name: Offline CLI
+        run: |
+          $ctl = "dist/hyprwin-win-x64/hyprwinctl.exe"
+          & $ctl print-default-config | Out-File -Encoding utf8 $env:RUNNER_TEMP/default.conf
+          & $ctl check-config $env:RUNNER_TEMP/default.conf
+          if ($LASTEXITCODE -ne 0) { throw "default config has errors" }
+          & $ctl list
+      - name: Rice round trip (43PR/dotfiles)
+        run: |
+          $ctl = "dist/hyprwin-win-x64/hyprwinctl.exe"
+          & $ctl rice install https://github.com/43PR/dotfiles
+          & $ctl rice use 43pr --no-wallpaper
+          if ($LASTEXITCODE -ne 0) { throw "rice use failed" }
+          & $ctl check-config
+          & $ctl rice off
+          if ($LASTEXITCODE -ne 0) { throw "rice off failed" }
+      - name: Start hyprwin and drive it over the pipe
+        run: |
+          $dir = (Resolve-Path dist/hyprwin-win-x64).Path
+          $p = Start-Process "$dir/hyprwin.exe" -PassThru
+          Start-Sleep 6
+          if ($p.HasExited) { Get-Content "$env:LOCALAPPDATA/hyprwin/hyprwin.log" -ErrorAction SilentlyContinue; throw "hyprwin exited: $($p.ExitCode)" }
+          $ctl = "$dir/hyprwinctl.exe"
+          & $ctl version
+          & $ctl monitors
+          Start-Process notepad
+          Start-Sleep 3
+          & $ctl -j clients
+          & $ctl dispatch workspace 2
+          & $ctl activeworkspace
+          & $ctl dispatch workspace 1
+          & $ctl configerrors
+          & $ctl dispatch exit
+          Start-Sleep 3
+          Get-Content "$env:LOCALAPPDATA/hyprwin/hyprwin.log" -ErrorAction SilentlyContinue
+          if (-not $p.HasExited) { Stop-Process $p; throw "hyprwin did not exit" }

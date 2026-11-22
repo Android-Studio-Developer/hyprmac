@@ -1,53 +1,20 @@
 # TODO
 
-## Windows version (working name: hyprwin)
+## Windows (hyprwin, `windows/`)
 
-Same idea as hyprmac: a Hyprland-style tiler that reads `hyprland.conf`, built on Win32 instead of
-the macOS Accessibility API.
+Built in C# / .NET 10: core ported from Swift with the same tests, Lua through KeraLua (real
+Lua 5.4) with the shared `hl-prelude.lua`, Win32 + DWM window layer, tray icon, named pipes,
+`hyprwinctl`, rices with junctions and `.cmd` stand-ins. CI runs it on a Windows runner.
 
-### Approach
-
-- [ ] Write it in **Swift for Windows** so `HyprmacCore` (config parser, dwindle/master layouts,
-      workspaces, focus, dispatchers) is reused unchanged, along with its tests. Core is already
-      free of AppKit/CoreGraphics; `Control.swift` is `#if canImport(Darwin)` and needs a Windows twin.
-      Fallback if the Swift toolchain on Windows is too painful: port Core to Rust and keep both in sync
-      with shared test fixtures (config files + expected frames as JSON).
-- [ ] Rename the shared core to something neutral (e.g. `HyprCore`) once a second platform uses it.
-- [ ] Windows key-code table (`VK_*`) next to `MacKeyCodes`; make the config parser validate keys
-      against the platform table.
-
-### Platform layer (Win32)
-
-- [ ] Window discovery: `EnumWindows`; manage visible top-level windows with a caption, no owner,
-      not `WS_EX_TOOLWINDOW`, not DWM-cloaked (`DWMWA_CLOAKED`), not UWP host frames that are empty.
-- [ ] Events: `SetWinEventHook` for `EVENT_OBJECT_SHOW/HIDE/DESTROY`, `EVENT_SYSTEM_FOREGROUND`,
-      `EVENT_SYSTEM_MINIMIZESTART/END`, `EVENT_SYSTEM_MOVESIZEEND`, `EVENT_OBJECT_NAMECHANGE`.
-- [ ] Moving windows: `SetWindowPos` / `DeferWindowPos`, correcting for invisible resize borders via
-      `DWMWA_EXTENDED_FRAME_BOUNDS`. Restore maximized windows first.
-- [ ] DPI: per-monitor DPI awareness v2; monitors from `EnumDisplayMonitors` + `rcWork`.
-- [ ] Hotkeys: `RegisterHotKey` with `MOD_NOREPEAT`. `SUPER` = Windows key. Some Win combos are
-      reserved (Win+L); fall back to a low-level keyboard hook (`WH_KEYBOARD_LL`) for those.
-- [ ] Hiding workspaces: cloak windows (komorebi-style, via the undocumented `IApplicationView`
-      COM interface) so taskbar icons stay; `ShowWindow(SW_HIDE)` as a fallback.
-- [ ] Focus: `SetForegroundWindow` is restricted; use the Alt-key trick or `AttachThreadInput`.
-- [ ] Borders: on Windows 11 use native `DWMWA_BORDER_COLOR` (single color) for the focused window;
-      layered click-through overlay windows for gradients and Windows 10.
-      Rounded corners via `DWMWA_WINDOW_CORNER_PREFERENCE`.
-- [ ] Elevated (admin) windows can't be moved from a normal process (UIPI): skip them, or offer
-      running hyprwin elevated.
-- [ ] `exec`: `cmd /c` / `CreateProcess`; config at `%USERPROFILE%\.config\hyprwin\hyprland.conf`.
-- [ ] IPC: named pipes `\\.\pipe\hyprwin` and `\\.\pipe\hyprwin-events`; `hyprwinctl` CLI with the
-      same commands and JSON as `hyprmacctl`.
-- [ ] Tray icon showing workspaces (like the macOS menu bar item); events usable from Zebar / YASB.
-- [ ] Packaging: winget + Scoop manifests; GitHub Actions `windows-latest` build + tests.
-
-### Rices on Windows
-
-- [ ] `hyprwin rice` with the same commands; link targets under `%USERPROFILE%\.config` and
-      `%APPDATA%` (kitty/alacritty/wezterm read different places on Windows).
-- [ ] Windows stand-ins: `wl-copy` -> `clip.exe`, `notify-send` -> toast, `thunar` -> `explorer`,
-      `rofi` -> PowerToys Run / Flow Launcher, `hyprlock` -> `rundll32 user32.dll,LockWorkStation`.
-- [ ] Wallpaper via `SystemParametersInfo(SPI_SETDESKWALLPAPER)`.
+- [ ] Use it day-to-day on a real Windows 11 desktop (multi-monitor, mixed DPI, UWP apps,
+      Explorer, Chrome/Electron, games in exclusive fullscreen).
+- [ ] Cloak hidden windows (komorebi-style, `IApplicationView`) instead of moving them off screen.
+- [ ] Gradient / thick borders with click-through overlay windows (DWM border is 1px, one color).
+- [ ] Low-level keyboard hook for Win-key combos Windows reserves (Win+L can't be taken at all).
+- [ ] Run rice scripts through Git Bash when installed (they're POSIX shell; cmd.exe can't run them).
+- [ ] Media keys (`XF86Audio*` -> VK_VOLUME_*), `binde` repeat, `bindm` mouse binds.
+- [ ] Self-contained single-file build + winget/Scoop manifests + signed releases.
+- [ ] Keep the two cores in sync: shared test fixtures (configs + expected frames as JSON) run by both.
 
 ## Rices (macOS)
 

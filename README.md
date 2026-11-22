@@ -1,5 +1,7 @@
 # hyprmac
 
+> Windows version: **hyprwin**, in [`windows/`](windows/README.md). Same config, rices and CLI.
+
 Hyprland-style tiling window manager for macOS. Reads `hyprland.conf` and Hyprland's newer Lua
 config (`hyprland.lua`): dwindle and master layouts, gaps, gradient borders, workspaces, keybinds,
 window rules, and a `hyprctl`-style CLI with an event socket for bars. Install Linux dotfiles
@@ -172,4 +174,6 @@ them out on the current workspace.
 - `Sources/HyprLua`: the `hl.*` API shim that turns Hyprland Lua configs into hyprmac config.
 - `Sources/hyprmac`: macOS daemon (Accessibility, Carbon hotkeys, borders, menu bar, sockets).
 - `Sources/hyprmacctl`: CLI.
-- `TODO.md`: roadmap, including the Windows version.
+- `shared/hl-prelude.lua`: the Lua `hl.*` shim used by both macOS and Windows.
+- `windows/`: hyprwin, the Windows version (C# / .NET 10).
+- `TODO.md`: roadmap.
