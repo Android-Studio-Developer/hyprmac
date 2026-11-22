@@ -93,7 +93,7 @@ public enum DefaultConfig {
     bind = $mainMod, 7, workspace, 7
     bind = $mainMod, 8, workspace, 8
     bind = $mainMod, 9, workspace, 9
-    bind = $mainMod, Tab, workspace, previous
+    bind = $mainMod, grave, workspace, previous
 
     bind = $mainMod SHIFT, 1, movetoworkspace, 1
     bind = $mainMod SHIFT, 2, movetoworkspace, 2

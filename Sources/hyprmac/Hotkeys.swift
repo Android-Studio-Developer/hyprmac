@@ -34,6 +34,7 @@ final class Hotkeys {
         base.remove(.shift)
         switch (base, key) {
         case ([.superKey], "tab"): return "the app switcher (Cmd+Tab)"
+        case ([.alt], "tab"): return "Option+Tab, used by window switchers like AltTab"
         case ([.superKey], "space"): return "Spotlight (Cmd+Space)"
         case ([.superKey, .ctrl], "q"): return "lock screen (Ctrl+Cmd+Q)"
         case ([.superKey, .alt], "escape"): return "Force Quit (Opt+Cmd+Esc)"

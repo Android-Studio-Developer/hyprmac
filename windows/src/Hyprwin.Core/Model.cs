@@ -234,6 +234,7 @@ public sealed class Model(Config config)
                 return Focused is { } f ? [new Effect.Close(f)] : [];
             case "workspace":
             {
+                if (arg == "previous" && PreviousWorkspace is null) return [];
                 int n = ResolveWorkspace(arg);
                 if (n == CurrentWorkspace) return [];
                 if (MonitorIndex(n) is { } m) FocusedMonitor = m; else Show(n, FocusedMonitor);

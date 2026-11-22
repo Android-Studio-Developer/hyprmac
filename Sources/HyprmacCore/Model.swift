@@ -257,6 +257,7 @@ public final class Model {
             return [.close(f)]
 
         case "workspace":
+            if arg == "previous" && previousWorkspace == nil { return [] }
             let n = try resolveWorkspace(arg)
             if n == currentWorkspace { return [] }
             if let m = monitorIndex(showing: n) { focusedMonitor = m } else { show(n, on: focusedMonitor) }
