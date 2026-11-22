@@ -26,6 +26,11 @@ sealed class Hotkeys : NativeWindow, IDisposable
             if (WinKeyCodes.Code(b.Key) is not { } vk) continue;
             var logical = b.Mods;
             if (logical.HasFlag(Mods.Super)) logical = (logical & ~Mods.Super) | superMapsTo; // Super here = the Windows key
+            if (Reserved(logical, b.Key) is { } why)
+            {
+                errors.Add($"skipped {b.Combo}: it would become {string.Join("+", logical.Names()).Replace("SUPER", "WIN")}+{b.Key}, {why}");
+                continue;
+            }
             uint mods = Native.MOD_NOREPEAT;
             if (logical.HasFlag(Mods.Super)) mods |= Native.MOD_WIN;
             if (logical.HasFlag(Mods.Shift)) mods |= Native.MOD_SHIFT;
@@ -42,6 +47,18 @@ sealed class Hotkeys : NativeWindow, IDisposable
         }
         return errors;
     }
+
+    /// <summary>System shortcuts a bind must never take over (after SUPER is remapped).</summary>
+    static string? Reserved(Mods m, string key) => (m & ~Mods.Shift, key) switch
+    {
+        (Mods.Alt, "tab") => "the Windows task switcher",
+        (Mods.Alt, "escape") => "a Windows window shortcut",
+        (Mods.Alt, "f4") when !m.HasFlag(Mods.Shift) => "close window (Alt+F4)",
+        (Mods.Ctrl, "escape") => "the Start menu",
+        (Mods.Super, "l") => "lock screen",
+        (Mods.Ctrl | Mods.Alt, "delete") => "the security screen",
+        _ => null,
+    };
 
     protected override void WndProc(ref Message m)
     {

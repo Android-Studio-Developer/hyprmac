@@ -28,6 +28,19 @@ final class Hotkeys {
         }, 1, &spec, me, &handlerRef)
     }
 
+    /// System shortcuts a bind must never take over (after SUPER is remapped). `.superKey` = Command.
+    static func reserved(_ m: Modifiers, _ key: String) -> String? {
+        var base = m
+        base.remove(.shift)
+        switch (base, key) {
+        case ([.superKey], "tab"): return "the app switcher (Cmd+Tab)"
+        case ([.superKey], "space"): return "Spotlight (Cmd+Space)"
+        case ([.superKey, .ctrl], "q"): return "lock screen (Ctrl+Cmd+Q)"
+        case ([.superKey, .alt], "escape"): return "Force Quit (Opt+Cmd+Esc)"
+        default: return nil
+        }
+    }
+
     /// Replaces all hotkeys. Returns errors for combos that could not be registered.
     func register(_ list: [KeyBind], superMapsTo: Modifiers = [.superKey]) -> [String] {
         for r in refs { UnregisterEventHotKey(r) }
@@ -41,6 +54,11 @@ final class Hotkeys {
             if logical.contains(.superKey) {
                 logical.remove(.superKey)
                 logical.formUnion(superMapsTo)  // .superKey here means the physical Command key
+            }
+            if let why = Hotkeys.reserved(logical, b.key) {
+                let combo = (b.mods.names + [b.key]).joined(separator: "+")
+                errors.append("skipped \(combo): it would take over \(why)")
+                continue
             }
             var mods: UInt32 = 0
             if logical.contains(.superKey) { mods |= UInt32(cmdKey) }
