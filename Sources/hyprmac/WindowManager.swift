@@ -791,6 +791,17 @@ final class WindowManager {
 
 func hex(_ id: WindowID) -> String { "0x" + String(id, radix: 16) }
 
+/// stderr plus ~/Library/Logs/hyprmac.log (the app has no terminal when started with `open`).
 func log(_ s: String) {
     FileHandle.standardError.write(Data("[hyprmac] \(s)\n".utf8))
+    let stamp = ISO8601DateFormatter().string(from: Date())
+    let line = Data("\(stamp) \(s)\n".utf8)
+    let path = ConfigParser.home + "/Library/Logs/hyprmac.log"
+    if let h = FileHandle(forWritingAtPath: path) {
+        h.seekToEndOfFile()
+        h.write(line)
+        try? h.close()
+    } else {
+        FileManager.default.createFile(atPath: path, contents: line)
+    }
 }

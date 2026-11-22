@@ -129,15 +129,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             signalSources.append(src)
         }
 
-        if accessibilityTrusted(prompt: true) {
+        if accessibilityTrusted(prompt: false) {
             startManager()
-        } else {
-            log("waiting for Accessibility permission: System Settings > Privacy & Security > Accessibility")
-            waitTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] t in
-                if accessibilityTrusted(prompt: false) {
-                    t.invalidate()
-                    self?.startManager()
-                }
+            return
+        }
+        log("waiting for Accessibility permission: System Settings > Privacy & Security > Accessibility")
+        showPermissionHelp()
+        waitTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] t in
+            if accessibilityTrusted(prompt: false) {
+                t.invalidate()
+                self?.waitingItem.map { NSStatusBar.system.removeStatusItem($0) }
+                self?.waitingItem = nil
+                log("Accessibility permission granted")
+                self?.startManager()
             }
         }
     }
@@ -147,6 +151,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.wm = wm
         wm.start()
     }
+
+    // MARK: Waiting for permission
+
+    var waitingItem: NSStatusItem?
+
+    static let settingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+
+    /// Without Accessibility hyprmac can't move windows. Say so visibly instead of waiting silently.
+    func showPermissionHelp() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.title = "⚠ hyprmac"
+        let menu = NSMenu()
+        menu.addItem(withTitle: "hyprmac needs Accessibility permission", action: nil, keyEquivalent: "")
+        let open = NSMenuItem(title: "Open Accessibility Settings…", action: #selector(openSettings), keyEquivalent: "")
+        open.target = self
+        menu.addItem(open)
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "Quit hyprmac", action: #selector(quitApp), keyEquivalent: "")
+        quit.target = self
+        menu.addItem(quit)
+        item.menu = menu
+        waitingItem = item
+
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = "hyprmac needs Accessibility permission"
+        alert.informativeText = """
+        hyprmac moves and resizes windows, which macOS only allows with Accessibility permission.
+
+        In System Settings > Privacy & Security > Accessibility, turn on Hyprmac. If Hyprmac is \
+        already listed (from an earlier build), select it, remove it with −, and add it again: \
+        each rebuild needs the permission again.
+
+        hyprmac starts by itself as soon as the permission is on.
+        """
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Later")
+        if alert.runModal() == .alertFirstButtonReturn { openSettings() }
+        // Registers this exact build in the Accessibility list.
+        _ = accessibilityTrusted(prompt: true)
+    }
+
+    @objc func openSettings() { NSWorkspace.shared.open(AppDelegate.settingsURL) }
+    @objc func quitApp() { exit(0) }
 }
 
 let app = NSApplication.shared
