@@ -26,11 +26,13 @@ Needs macOS 14+ and Swift 5.9+ (Xcode or the Command Line Tools).
 Install:
 
 ```sh
-cp -R build/Hyprmac.app ~/Applications/
-cp build/hyprmacctl /usr/local/bin/      # or anywhere on PATH
+./scripts/install.sh                     # ~/Applications/Hyprmac.app + hyprmac, hyprmacctl in ~/.local/bin
 alias hyprctl=hyprmacctl                 # optional
-open ~/Applications/Hyprmac.app
+open ~/Applications/Hyprmac.app          # start the window manager
 ```
+
+`BIN_DIR=/opt/homebrew/bin ./scripts/install.sh` links somewhere else if `~/.local/bin` isn't on
+your PATH.
 
 On first launch macOS asks for **Accessibility** permission (System Settings > Privacy & Security >
 Accessibility). hyprmac waits until it is granted. After a rebuild you may need to switch the
