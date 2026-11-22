@@ -31,6 +31,8 @@ public abstract record Effect
     public sealed record Center(long Window) : Effect;
     public sealed record MoveWindow(long Window, double X, double Y, bool Exact) : Effect;
     public sealed record ResizeWindow(long Window, double X, double Y, bool Exact) : Effect;
+    /// <summary>Shell action, e.g. "launcher", "dashboard", "session" (from `global, shell:launcher`).</summary>
+    public sealed record Global(string Action) : Effect;
     public sealed record Reload : Effect;
     public sealed record Quit : Effect;
 }
@@ -230,6 +232,13 @@ public sealed class Model(Config config)
                 return [new Effect.Exec(arg)];
             case "exit":
                 return [new Effect.Quit()];
+            case "global":
+            {
+                // Hyprland's `global` names an action as app:action; accept shell:, caelestia: or none.
+                var action = arg.Split(':')[^1];
+                if (action.Length == 0) throw new DispatchException("global needs an action, e.g. shell:launcher");
+                return [new Effect.Global(action)];
+            }
             case "killactive" or "closewindow":
                 return Focused is { } f ? [new Effect.Close(f)] : [];
             case "workspace":

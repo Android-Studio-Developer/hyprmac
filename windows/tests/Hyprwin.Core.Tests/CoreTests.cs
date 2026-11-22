@@ -12,7 +12,10 @@ public class ConfigTests
         var c = ConfigParser.Parse(DefaultConfig.Text);
         Assert.Empty(c.Errors);
         Assert.True(c.Binds.Count > 30);
-        Assert.Equal(Insets.All(12), c.GapsOut);
+        Assert.Equal(Insets.All(18), c.GapsOut);
+        Assert.True(c.Shell);
+        Assert.False(c.BordersExplicit);
+        Assert.Contains(c.Binds, b => b.Dispatcher == "global" && b.Arg == "shell:launcher");
         Assert.True(c.PreserveSplit);
         Assert.Equal(2, c.Rules.Count);
     }
@@ -332,6 +335,15 @@ public class ModelTests
         Assert.Equal(700, m.Frames()[3].W);
         m.Dispatch("splitratio", "-0.2");
         Assert.Equal(600, m.Frames()[3].W);
+    }
+
+    [Fact]
+    public void GlobalActions()
+    {
+        var m = Make();
+        Assert.Equal([new Effect.Global("launcher")], m.Dispatch("global", "shell:launcher"));
+        Assert.Equal([new Effect.Global("dashboard")], m.Dispatch("global", "caelestia:dashboard"));
+        Assert.Throws<DispatchException>(() => m.Dispatch("global", ""));
     }
 
     [Fact]

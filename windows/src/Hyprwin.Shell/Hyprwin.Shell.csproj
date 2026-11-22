@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- hyprwin's desktop shell (WPF): bar, screen frame, launcher, dashboard, session menu,
+       colors from the wallpaper. Original code; the look is inspired by Caelestia. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Hyprwin.Shell</RootNamespace>
+    <NoWarn>$(NoWarn);CA1416;SYSLIB1054</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Hyprwin.Core/Hyprwin.Core.csproj" />
+  </ItemGroup>
+
+</Project>

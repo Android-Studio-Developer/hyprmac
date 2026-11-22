@@ -55,6 +55,14 @@ public sealed class Config
     /// <summary>Physical modifiers SUPER binds use. Default the Windows key. Rices bind SUPER+C/V/L...,
     /// several of which Windows reserves, so `hyprwin rice use` sets ALT.</summary>
     public Mods SuperMapsTo = Mods.Super;
+    /// <summary>Caelestia-style desktop shell: bar, screen frame, launcher, dashboard, session menu.</summary>
+    public bool Shell = true;
+    /// <summary>Auto-hide the Windows taskbar while the shell runs (restored on exit).</summary>
+    public bool HideTaskbar = true;
+    /// <summary>"auto" = colors from the wallpaper, or a color such as rgb(89b4fa) to seed the scheme.</summary>
+    public string Scheme = "auto";
+    /// <summary>The config set col.active_border / col.inactive_border itself (the scheme won't override).</summary>
+    public bool BordersExplicit;
 
     public List<KeyBind> Binds = [];
     public List<string> ExecOnce = [];
@@ -82,6 +90,7 @@ public static class Dispatchers
         "fullscreen", "togglesplit", "splitratio", "layoutmsg", "exit", "focusmonitor",
         "cyclenext", "centerwindow", "pseudo", "pin", "moveactive", "resizeactive",
         "lua", // internal: run a function or multi-line command from a Lua config
+        "global", // shell actions: global, shell:launcher (also accepts caelestia:launcher)
     ];
 
     public static readonly HashSet<string> Unsupported = ["pseudo", "pin"];
@@ -284,8 +293,10 @@ public static class ConfigParser
                 case "general:gaps_in": if (Insets.ParseCss(value) is { } gi) Config.GapsIn = gi; else Bad(); return;
                 case "general:gaps_out": if (Insets.ParseCss(value) is { } go) Config.GapsOut = go; else Bad(); return;
                 case "general:border_size": if (Num(value) is { } bs && bs >= 0) Config.BorderSize = bs; else Bad(); return;
-                case "general:col.active_border": if (BorderColor.Parse(value) is { } ab) Config.ActiveBorder = ab; else Bad(); return;
-                case "general:col.inactive_border": if (BorderColor.Parse(value) is { } ib) Config.InactiveBorder = ib; else Bad(); return;
+                case "general:col.active_border":
+                    if (BorderColor.Parse(value) is { } ab) { Config.ActiveBorder = ab; Config.BordersExplicit = true; } else Bad(); return;
+                case "general:col.inactive_border":
+                    if (BorderColor.Parse(value) is { } ib) { Config.InactiveBorder = ib; Config.BordersExplicit = true; } else Bad(); return;
                 case "general:layout": if (value is "dwindle" or "master") Config.Layout = value; else Bad(); return;
                 case "decoration:rounding": if (Num(value) is { } ro && ro >= 0) Config.Rounding = ro; else Bad(); return;
                 case "dwindle:preserve_split": if (Bool(value) is { } ps) Config.PreserveSplit = ps; else Bad(); return;
@@ -300,6 +311,10 @@ public static class ConfigParser
                 case "master:orientation":
                     if (value is "left" or "right" or "top" or "bottom") Config.Orientation = value; else Bad(); return;
                 case "hyprmac:status_bar": if (Bool(value) is { } sb) Config.StatusBar = sb; else Bad(); return;
+                case "hyprmac:shell": if (Bool(value) is { } sh) Config.Shell = sh; else Bad(); return;
+                case "hyprmac:hide_taskbar": if (Bool(value) is { } ht) Config.HideTaskbar = ht; else Bad(); return;
+                case "hyprmac:scheme":
+                    if (value == "auto" || BorderColor.Parse(value) is not null) Config.Scheme = value; else Bad(); return;
                 case "hyprmac:super":
                     if (ModsParser.Parse(value) is { } sm && sm != Mods.None) Config.SuperMapsTo = sm; else Bad(); return;
             }

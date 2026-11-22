@@ -44,6 +44,8 @@ public enum Effect: Equatable, Sendable {
     /// Move/resize a floating window: by (x, y), or to (x, y) when `exact`.
     case moveWindow(WindowID, x: Double, y: Double, exact: Bool)
     case resizeWindow(WindowID, x: Double, y: Double, exact: Bool)
+    /// Shell action, e.g. "launcher", "dashboard", "session" (from `global, shell:launcher`).
+    case global(String)
     case reload
     case quit
 }
@@ -251,6 +253,12 @@ public final class Model {
 
         case "exit":
             return [.quit]
+
+        case "global":
+            // Hyprland's `global` names an action as app:action; accept shell:, caelestia: or none.
+            let action = arg.split(separator: ":").last.map(String.init) ?? arg
+            guard !action.isEmpty else { throw DispatchError("global needs an action, e.g. shell:launcher") }
+            return [.global(action)]
 
         case "killactive", "closewindow":
             guard let f = focused else { return [] }

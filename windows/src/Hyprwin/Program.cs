@@ -66,6 +66,8 @@ public static class Program
         Application.ThreadException += (_, e) => Log($"error: {e.Exception}");
 
         var wm = new WindowManager(configPath);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => { Log($"crash: {e.ExceptionObject}"); wm.EmergencyCleanup(); };
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => wm.EmergencyCleanup();
         wm.Start();
         Application.ApplicationExit += (_, _) => Log("exit");
         Application.Run(new ApplicationContext());

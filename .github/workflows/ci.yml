@@ -52,23 +52,48 @@ jobs:
           & $ctl check-config
           & $ctl rice off
           if ($LASTEXITCODE -ne 0) { throw "rice off failed" }
-      - name: Start hyprwin and drive it over the pipe
+      - name: Start hyprwin with the shell, drive it, take screenshots
         run: |
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $shots = "$env:RUNNER_TEMP/shots"; New-Item -ItemType Directory -Force $shots | Out-Null
+          function Shot($name) {
+            $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+            $g = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+            $bmp.Save("$shots/$name.png"); $g.Dispose(); $bmp.Dispose()
+          }
+          # A colorful wallpaper so the scheme has something to pick from.
+          $wall = "$env:RUNNER_TEMP/wall.jpg"
+          Invoke-WebRequest https://raw.githubusercontent.com/43PR/dotfiles/main/wallhaven-k8jvm7.jpg -OutFile $wall
+          Add-Type -Namespace W -Name P -MemberDefinition '[DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern bool SystemParametersInfo(uint a, uint b, string c, uint d);'
+          [W.P]::SystemParametersInfo(0x14, 0, $wall, 3) | Out-Null
+
           $dir = (Resolve-Path dist/hyprwin-win-x64).Path
-          $p = Start-Process "$dir/hyprwin.exe" -PassThru
-          Start-Sleep 6
-          if ($p.HasExited) { Get-Content "$env:LOCALAPPDATA/hyprwin/hyprwin.log" -ErrorAction SilentlyContinue; throw "hyprwin exited: $($p.ExitCode)" }
           $ctl = "$dir/hyprwinctl.exe"
+          Start-Process notepad; Start-Process notepad; Start-Sleep 2
+          $p = Start-Process "$dir/hyprwin.exe" -PassThru
+          Start-Sleep 7
+          if ($p.HasExited) { Get-Content "$env:LOCALAPPDATA/hyprwin/hyprwin.log" -ErrorAction SilentlyContinue; throw "hyprwin exited: $($p.ExitCode)" }
           & $ctl version
           & $ctl monitors
-          Start-Process notepad
-          Start-Sleep 3
           & $ctl -j clients
-          & $ctl dispatch workspace 2
-          & $ctl activeworkspace
+          Shot desktop
+          & $ctl dispatch global shell:launcher; Start-Sleep 2; Shot launcher
+          & $ctl dispatch global shell:dashboard; Start-Sleep 3; Shot dashboard
+          & $ctl dispatch global shell:session; Start-Sleep 2; Shot session
+          & $ctl dispatch global shell:session; Start-Sleep 1
+          & $ctl dispatch workspace 2; Start-Sleep 1; Shot workspace2
           & $ctl dispatch workspace 1
           & $ctl configerrors
           & $ctl dispatch exit
           Start-Sleep 3
+          Shot after-exit
           Get-Content "$env:LOCALAPPDATA/hyprwin/hyprwin.log" -ErrorAction SilentlyContinue
           if (-not $p.HasExited) { Stop-Process $p; throw "hyprwin did not exit" }
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyprwin-screenshots
+          path: ${{ runner.temp }}/shots

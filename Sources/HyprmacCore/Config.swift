@@ -70,6 +70,13 @@ public struct Config: Sendable {
     /// Physical modifier(s) that SUPER binds use. Default Command. Rices made for Linux bind
     /// SUPER+C/V/Q..., which would break copy/paste on a Mac, so `hyprmac rice use` sets ALT.
     public var superMapsTo: Modifiers = [.superKey]
+    /// Desktop shell (bar, frame, launcher, dashboard). Not built on macOS yet.
+    public var shell = false
+    public var hideTaskbar = true
+    /// "auto" = colors from the wallpaper, or a color like rgb(89b4fa) to seed the scheme.
+    public var scheme = "auto"
+    /// The config set col.active_border / col.inactive_border itself (the shell scheme won't override).
+    public var bordersExplicit = false
 
     public var binds: [KeyBind] = []
     public var execOnce: [String] = []
@@ -100,6 +107,7 @@ public enum Dispatchers {
         "fullscreen", "togglesplit", "splitratio", "layoutmsg", "exit", "focusmonitor",
         "cyclenext", "centerwindow", "pseudo", "pin", "moveactive", "resizeactive",
         "lua",  // internal: run a function or multi-line command from a Lua config
+        "global",  // shell actions: global, shell:launcher (also accepts caelestia:launcher)
     ]
     /// Known Hyprland dispatchers that have no macOS meaning yet.
     public static let unsupported: Set<String> = ["pseudo", "pin"]
@@ -278,8 +286,10 @@ private struct Parser {
         case "general:gaps_in": if let v = Insets(css: value) { config.gapsIn = v } else { bad() }
         case "general:gaps_out": if let v = Insets(css: value) { config.gapsOut = v } else { bad() }
         case "general:border_size": if let v = number(value), v >= 0 { config.borderSize = v } else { bad() }
-        case "general:col.active_border": if let v = BorderColor.parse(value) { config.activeBorder = v } else { bad() }
-        case "general:col.inactive_border": if let v = BorderColor.parse(value) { config.inactiveBorder = v } else { bad() }
+        case "general:col.active_border":
+            if let v = BorderColor.parse(value) { config.activeBorder = v; config.bordersExplicit = true } else { bad() }
+        case "general:col.inactive_border":
+            if let v = BorderColor.parse(value) { config.inactiveBorder = v; config.bordersExplicit = true } else { bad() }
         case "general:layout":
             if value == "dwindle" || value == "master" { config.layout = value } else { bad() }
 
@@ -299,6 +309,10 @@ private struct Parser {
             if ["left", "right", "top", "bottom"].contains(value) { config.orientation = value } else { bad() }
 
         case "hyprmac:status_bar": if let v = bool(value) { config.statusBar = v } else { bad() }
+        case "hyprmac:shell": if let v = bool(value) { config.shell = v } else { bad() }
+        case "hyprmac:hide_taskbar": if let v = bool(value) { config.hideTaskbar = v } else { bad() }
+        case "hyprmac:scheme":
+            if value == "auto" || BorderColor.parse(value) != nil { config.scheme = value } else { bad() }
         case "hyprmac:super":
             if let m = Modifiers.parse(value), !m.isEmpty { config.superMapsTo = m } else { bad() }
 

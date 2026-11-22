@@ -38,17 +38,24 @@ public static class DefaultConfig
     $browser = start "" msedge.exe
     $files = start "" explorer.exe
 
+    # Desktop shell: bar on the left, a frame around the screen, and panels that open from it.
+    # Colors come from your wallpaper (scheme = auto) or a seed color like rgb(89b4fa).
+    hyprwin {
+        shell = true
+        hide_taskbar = true
+        scheme = auto
+    }
+
     general {
-        gaps_in = 5
-        gaps_out = 12
+        gaps_in = 6
+        gaps_out = 18
         border_size = 2
-        col.active_border = rgba(33ccffee) rgba(00ff99ee) 45deg
-        col.inactive_border = rgba(595959aa)
+        # Border colors follow the shell scheme. Set col.active_border / col.inactive_border to override.
         layout = dwindle
     }
 
     decoration {
-        rounding = 10
+        rounding = 12
     }
 
     dwindle {
@@ -63,6 +70,11 @@ public static class DefaultConfig
     # Windows that should not tile (class = process name or window class).
     windowrulev2 = float, class:^(SystemSettings|CalculatorApp|Taskmgr|mmc)$
     windowrulev2 = float, title:^(Picture-in-Picture|Picture in picture)$
+
+    # Shell
+    bind = $mainMod, D, global, shell:launcher
+    bind = $mainMod SHIFT, D, global, shell:dashboard
+    bind = $mainMod SHIFT, P, global, shell:session
 
     # Apps
     bind = $mainMod, Return, exec, $terminal

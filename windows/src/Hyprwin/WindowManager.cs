@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Hyprwin.Core;
+using Hyprwin.Shell;
 using Microsoft.Win32;
 using Rect = Hyprwin.Core.Rect;
 
@@ -21,8 +22,10 @@ sealed class ManagedWindow(IntPtr hwnd, uint pid, string process, string classNa
 
 /// <summary>Drives real Windows windows from the platform-free <see cref="Model"/>. Mirrors the macOS
 /// WindowManager: tile, park windows of hidden workspaces off screen, color borders via DWM.</summary>
-sealed class WindowManager
+sealed class WindowManager : IShellBackend
 {
+    ShellHost? shell;
+    public event Action? Changed;
     public string ConfigPath { get; }
     public Model Model { get; } = new(new Config());
     public RiceManager Rices { get; }
@@ -74,6 +77,7 @@ sealed class WindowManager
         LuaConfig.Host = LuaHost;
         Model.Config = LoadConfig();
         UpdateMonitors();
+        StartOrStopShell();
         hotkeys = new Hotkeys(b => Run(b.Dispatcher, b.Arg));
         RegisterHotkeys();
 
@@ -101,7 +105,7 @@ sealed class WindowManager
         if (Model.Config.StatusBar) tray = new Tray(this);
 
         AddTimer(1000, CheckConfigChanged);
-        AddTimer(3000, () => { ScanAll(initial: false); Apply(); });
+        AddTimer(3000, () => { UpdateMonitors(); ScanAll(initial: false); Apply(); });
 
         foreach (var cmd in Model.Config.ExecOnce.Concat(Model.Config.Exec)) WinCompat.Spawn(cmd, Program.Log);
         LuaConfig.Emit("hyprland.start");
@@ -129,6 +133,8 @@ sealed class WindowManager
             if (Model.Frames(wsId, m).TryGetValue(id, out var r)) { lastSet.Remove(id); SetFrame(w, r); }
         }
         foreach (var w in windows.Values) ResetDecorations(w);
+        shell?.Dispose();
+        shell = null;
         foreach (var h in hooks) Native.UnhookWinEvent(h);
         hotkeys?.Dispose();
         tray?.Dispose();
@@ -161,6 +167,7 @@ sealed class WindowManager
         RegisterHotkeys();
         lastSet.Clear();
         foreach (var w in windows.Values) { w.BorderColor = null; w.CornerSet = false; }
+        StartOrStopShell();
         if (c.StatusBar && tray is null) tray = new Tray(this);
         if (!c.StatusBar && tray is not null) { tray.Dispose(); tray = null; }
         foreach (var cmd in c.Exec) WinCompat.Spawn(cmd, Program.Log);
@@ -470,6 +477,10 @@ sealed class WindowManager
                     if (windows.TryGetValue(rs.Window, out var rw) && Native.VisibleFrame(rw.Hwnd) is { } rf)
                         SetFrame(rw, rf with { W = Math.Max(50, rs.Exact ? rs.X : rf.W + rs.X), H = Math.Max(50, rs.Exact ? rs.Y : rf.H + rs.Y) });
                     break;
+                case Effect.Global g:
+                    if (shell is not null) shell.Toggle(g.Action);
+                    else Program.Log($"global {g.Action}: the shell is off (hyprwin {{ shell = true }})");
+                    break;
                 case Effect.Reload: Reload(); break;
                 case Effect.Quit: Shutdown(); break;
             }
@@ -580,6 +591,7 @@ sealed class WindowManager
     {
         var c = Model.Config;
         uint active = c.ActiveBorder.Colors[0].ColorRef, inactive = c.InactiveBorder.Colors[0].ColorRef;
+        if (shell is not null && !c.BordersExplicit) (active, inactive) = shell.BorderColors();
         foreach (var (id, w) in windows)
         {
             uint want = c.BorderSize <= 0 ? Native.DWMWA_COLOR_DEFAULT : id == Model.Focused ? active : inactive;
@@ -607,6 +619,7 @@ sealed class WindowManager
 
     void UpdateUi()
     {
+        Changed?.Invoke();
         tray?.Update();
         EmitEvents();
     }
@@ -632,6 +645,59 @@ sealed class WindowManager
         lastWindowWorkspace = new(Model.WindowWorkspace);
         lastEvent = (ws, Model.Focused, Model.FocusedMonitor);
     }
+
+    // ---- Shell
+
+    /// <summary>Starts, reconfigures or stops the desktop shell to match the config.</summary>
+    void StartOrStopShell()
+    {
+        var c = Model.Config;
+        if (!c.Shell)
+        {
+            if (shell is null) return;
+            shell.Dispose();
+            shell = null;
+            UpdateMonitors();
+            return;
+        }
+        var options = new ShellOptions(c.HideTaskbar, c.Scheme);
+        if (shell is null)
+        {
+            try
+            {
+                shell = new ShellHost(this, options);
+                shell.SchemeChanged += () =>
+                {
+                    foreach (var w in windows.Values) w.BorderColor = null;
+                    UpdateBorders();
+                };
+                shell.Start();
+            }
+            catch (Exception e)
+            {
+                Program.Log($"shell failed to start: {e}");
+                shell = null;
+            }
+        }
+        else shell.Configure(options);
+        UpdateMonitors(); // the bar and taskbar auto-hide change the work area
+    }
+
+    /// <summary>Last-chance cleanup when hyprwin crashes: give the taskbar back.</summary>
+    public void EmergencyCleanup()
+    {
+        try { shell?.Dispose(); } catch (Exception) { }
+    }
+
+    public ShellState State => new(
+        Model.CurrentWorkspace,
+        Model.Workspaces.Values.Where(w => !w.IsEmpty).Select(w => w.Id).Order().ToList(),
+        Model.Focused is { } f && windows.TryGetValue(f, out var fw) ? fw.Process : "",
+        Model.Focused is { } t && windows.TryGetValue(t, out var tw) ? tw.Title : "");
+
+    string? IShellBackend.Dispatch(string dispatcher, string arg) => Run(dispatcher, arg);
+    void IShellBackend.Exec(string command) => WinCompat.Spawn(command, Program.Log);
+    void IShellBackend.Quit() => Shutdown();
 
     // ---- IPC
 

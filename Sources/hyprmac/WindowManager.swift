@@ -538,6 +538,7 @@ final class WindowManager {
                 let r = Rect(x: f.x, y: f.y, w: max(50, exact ? x : f.w + x), h: max(50, exact ? y : f.h + y)).rounded()
                 withoutEnhancedUI(w.appElement) { w.element.setSize(CGSize(width: r.w, height: r.h)) }
                 lastSet[id] = (r, Date())
+            case .global(let action): log("shell action \(action): the desktop shell is Windows-only for now")
             case .reload: reload()
             case .quit: shutdown()
             }
