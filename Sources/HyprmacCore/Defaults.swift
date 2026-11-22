@@ -25,17 +25,26 @@ public enum DefaultConfig {
     $browser = open -a Safari
     $files = open ~
 
+    # Caelestia-style shell: a bar across the top and a frame around the screen, colored from
+    # your wallpaper. The macOS menu bar auto-hides while it runs (move the mouse to the top).
+    hyprmac {
+        shell = true          # false = tiling only
+        hide_menubar = true
+        scheme = auto         # or a seed color: rgb(89b4fa)
+    }
+
     general {
         gaps_in = 5
-        gaps_out = 12
+        gaps_out = 10
         border_size = 2
-        col.active_border = rgba(33ccffee) rgba(00ff99ee) 45deg
-        col.inactive_border = rgba(595959aa)
+        # Border colors follow the shell's scheme. Set them yourself to override:
+        # col.active_border = rgba(33ccffee) rgba(00ff99ee) 45deg
+        # col.inactive_border = rgba(595959aa)
         layout = dwindle
     }
 
     decoration {
-        rounding = 10
+        rounding = 12
     }
 
     dwindle {

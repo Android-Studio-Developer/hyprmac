@@ -2,16 +2,15 @@ import AppKit
 import HyprmacCore
 
 /// Menu bar item showing workspaces, e.g. "1 [2] 4". Menu: reload, edit config, errors, quit.
-final class StatusBar: NSObject, NSMenuDelegate {
+final class StatusBar {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private weak var manager: WindowManager?
+    private let menu: HyprmacMenu
 
     init(manager: WindowManager) {
         self.manager = manager
-        super.init()
-        let menu = NSMenu()
-        menu.delegate = self
-        item.menu = menu
+        menu = HyprmacMenu(manager: manager)
+        item.menu = menu.make()
         update()
     }
 
@@ -26,6 +25,22 @@ final class StatusBar: NSObject, NSMenuDelegate {
         let warn = (manager?.configErrors.isEmpty ?? true) ? "" : "⚠ "
         item.button?.title = warn + text
         item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+    }
+}
+
+/// The hyprmac menu, shared by the menu bar item and the shell bar's logo.
+final class HyprmacMenu: NSObject, NSMenuDelegate {
+    private weak var manager: WindowManager?
+
+    init(manager: WindowManager) {
+        self.manager = manager
+    }
+
+    /// A menu filled when it opens. The caller keeps this object alive (menu delegates are weak).
+    func make() -> NSMenu {
+        let menu = NSMenu()
+        menu.delegate = self
+        return menu
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {

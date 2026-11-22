@@ -12,8 +12,45 @@ macOS does not let anyone replace its compositor, so this is not Hyprland itself
 macOS windows through the Accessibility API, the same way yabai and AeroSpace do. It does not need
 SIP disabled.
 
-> Status: 0.1.0, early. The core (config, layouts, workspaces) has unit tests; the macOS layer
+![hyprmac shell](docs/hyprmac-dashboard.jpg)
+
+> Status: 0.2.0, early. The core (config, layouts, workspaces) has unit tests; the macOS layer
 > builds and detects windows but has not been run day-to-day yet. Expect rough edges.
+
+## Shell
+
+hyprmac comes with a desktop shell inspired by Caelestia's look (original code), on by default:
+
+- **Bar** across the top: hyprmac menu (logo), workspace pills (click to switch), the active app
+  and window title, network and battery, date and clock, power.
+- **Frame** around the screen in the bar's color; tiled windows sit inside its rounded corners.
+- **Dashboard** grows out of the bar (click the clock, or `global, shell:dashboard`): clock, date,
+  calendar with month paging.
+- **Session** menu grows out of the bar's right end (power button, `global, shell:session`): lock,
+  sleep, log out, restart, shut down (the last three need a second click), quit hyprmac.
+- `global, shell:launcher` opens Apps.
+- **Colors** come from your wallpaper (Material-style dark scheme) and follow it when it changes;
+  window borders use them too unless the config sets `col.active_border`.
+- The **macOS menu bar** auto-hides while hyprmac runs (move the mouse to the top to reach it) and
+  your setting comes back when hyprmac quits. After a crash, `hyprmac --restore-menubar` puts it back.
+
+| Session | Bar only |
+|---|---|
+| ![session](docs/hyprmac-session.jpg) | ![bar](docs/hyprmac-bar.jpg) |
+
+(Screenshots use `scheme = rgb(cba6f7)`.)
+
+```ini
+hyprmac {
+    shell = true          # false = tiling only
+    hide_menubar = true
+    scheme = auto         # or a seed color: rgb(89b4fa)
+}
+bind = ALT SHIFT, D, global, shell:dashboard     # also: shell:session, shell:launcher
+```
+
+`hyprmac --render-shell out.png [--open dashboard|session]` draws the shell to an image without
+touching the screen.
 
 ## Build
 
@@ -65,6 +102,7 @@ Supported:
 | `exec-once`, `exec` | run with `/bin/sh -c`, Homebrew on PATH. Use `open -a App` for GUI apps |
 | `windowrulev2`/`windowrule`: `float`, `tile`, `center`, `fullscreen`, `workspace N [silent]`, `size W H` (px or %) | `class:` matches the app name or bundle id; regex is full-match, case-insensitive |
 | `hyprmac:status_bar = false` | hyprmac-only: hide the menu bar item |
+| `hyprmac:shell`, `hyprmac:hide_menubar`, `hyprmac:scheme` | hyprmac-only: the [shell](#shell) |
 
 Options that only make sense on Linux (`monitor`, `env`, `input`, `animations`, `decoration:blur`,
 `bindm`, ...) are accepted and ignored, so a Linux config loads without errors.
@@ -166,7 +204,7 @@ Example SketchyBar hook: `hyprmacctl listen | while read -r l; do case $l in wor
 ## Recovery
 
 Quitting (menu bar item > Quit, `hyprmacctl dispatch exit`, Ctrl+C or SIGTERM) moves every hidden
-window back on screen. If hyprmac crashes, start it again: it picks up the parked windows and lays
+window back on screen and restores the menu bar setting. If hyprmac crashes, start it again: it picks up the parked windows and lays
 them out on the current workspace.
 
 ## Layout
@@ -175,7 +213,7 @@ them out on the current workspace.
   focus, dispatchers, Linux-compat tables, rice catalog). Shared with the planned Windows port.
 - `Sources/CLua`: Lua 5.4.7, vendored unchanged (MIT).
 - `Sources/HyprLua`: the `hl.*` API shim that turns Hyprland Lua configs into hyprmac config.
-- `Sources/hyprmac`: macOS daemon (Accessibility, Carbon hotkeys, borders, menu bar, sockets).
+- `Sources/hyprmac`: macOS daemon (Accessibility, Carbon hotkeys, borders, menu bar, shell, sockets).
 - `Sources/hyprmacctl`: CLI.
 - `shared/hl-prelude.lua`: the Lua `hl.*` shim used by both macOS and Windows.
 - `windows/`: hyprwin, the Windows version (C# / .NET 10).

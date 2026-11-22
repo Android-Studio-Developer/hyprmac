@@ -70,8 +70,9 @@ public struct Config: Sendable {
     /// Physical modifier(s) that SUPER binds use. Default Command. Rices made for Linux bind
     /// SUPER+C/V/Q..., which would break copy/paste on a Mac, so `hyprmac rice use` sets ALT.
     public var superMapsTo: Modifiers = [.superKey]
-    /// Desktop shell (bar, frame, launcher, dashboard). Not built on macOS yet.
-    public var shell = false
+    /// Desktop shell: Caelestia-style top bar and screen frame (Windows: bar, launcher, dashboard).
+    public var shell = true
+    /// Hide the taskbar (Windows) / auto-hide the menu bar (macOS) while the shell runs.
     public var hideTaskbar = true
     /// "auto" = colors from the wallpaper, or a color like rgb(89b4fa) to seed the scheme.
     public var scheme = "auto"
@@ -310,7 +311,7 @@ private struct Parser {
 
         case "hyprmac:status_bar": if let v = bool(value) { config.statusBar = v } else { bad() }
         case "hyprmac:shell": if let v = bool(value) { config.shell = v } else { bad() }
-        case "hyprmac:hide_taskbar": if let v = bool(value) { config.hideTaskbar = v } else { bad() }
+        case "hyprmac:hide_taskbar", "hyprmac:hide_menubar": if let v = bool(value) { config.hideTaskbar = v } else { bad() }
         case "hyprmac:scheme":
             if value == "auto" || BorderColor.parse(value) != nil { config.scheme = value } else { bad() }
         case "hyprmac:super":

@@ -78,6 +78,8 @@ final class WindowManager {
     private var ipc: IPCServer?
     private var events: EventServer?
     private var statusBar: StatusBar?
+    private(set) var shell: Shell?
+    private lazy var shellMenuSource = HyprmacMenu(manager: self)
     private var configStamps: [String: Date] = [:]
     private var hotkeyErrors: [String] = []
     /// Binds not registered because they need Linux-only programs (e.g. grim, rofi -dmenu).
@@ -104,6 +106,7 @@ final class WindowManager {
         LuaConfig.host = { [weak self] op, arg in self?.luaHost(op, arg) }
         Rice.onApplied = { [weak self] in self?.reload() }
         model.config = loadConfig()
+        configureShell()
         updateMonitors()
         hotkeys = Hotkeys { [weak self] bind in self?.run(bind.dispatcher, bind.arg) }
         registerHotkeys()
@@ -132,6 +135,7 @@ final class WindowManager {
             self?.scanApp(app.processIdentifier)
         }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.shell?.layout()
             self?.updateMonitors()
             self?.apply()
         }
@@ -154,6 +158,8 @@ final class WindowManager {
 
         timers.append(Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.checkConfigChanged() })
         timers.append(Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+            self?.shell?.checkWallpaper()
+            self?.refreshMonitors()
             self?.scanAll()
             self?.apply()
         })
@@ -179,6 +185,7 @@ final class WindowManager {
             }
         }
         borders.removeAll()
+        shell?.dispose()
         ipc?.stop()
         events?.stop()
         exit(0)
@@ -207,6 +214,8 @@ final class WindowManager {
         MacCompat.installShims()  // programs may have been installed since start
         let c = loadConfig()
         model.config = c
+        configureShell()
+        updateMonitors()
         registerHotkeys()
         lastSet.removeAll()
         if c.statusBar, statusBar == nil { statusBar = StatusBar(manager: self) }
@@ -216,6 +225,28 @@ final class WindowManager {
         LuaConfig.emit("config.reloaded")
         events?.emit("configreloaded", "")
         log("config reloaded (\(c.errors.count) error(s))")
+    }
+
+    // MARK: Shell
+
+    private func configureShell() {
+        let c = model.config
+        if c.shell {
+            if shell == nil {
+                let s = Shell(actions: self)
+                s.onSchemeChange = { [weak self] in self?.updateBorders() }
+                shell = s
+            }
+            shell?.configure(hideMenuBar: c.hideTaskbar, scheme: c.scheme)
+        } else {
+            shell?.dispose()
+            shell = nil
+            MenuBarHider.restore()  // also covers a crashed earlier run
+        }
+        // The menu bar slides away over a moment: fit the layout again once it settles.
+        for delay in [0.5, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refreshMonitors() }
+        }
     }
 
     private func registerHotkeys() {
@@ -280,12 +311,26 @@ final class WindowManager {
 
     // MARK: Discovery
 
-    private func updateMonitors() {
-        let list = NSScreen.screens.map { s -> (id: String, name: String, frame: Rect) in
-            let num = (s.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.stringValue ?? s.localizedName
-            return (id: num, name: s.localizedName, frame: Coords.ax(s.visibleFrame))
+    /// Usable area per screen: the visible frame, or inside the shell's bar and frame.
+    private func monitorList() -> [(id: String, name: String, frame: Rect)] {
+        NSScreen.screens.map { s in
+            (id: Shell.screenID(s), name: s.localizedName, frame: Coords.ax(shell == nil ? s.visibleFrame : Shell.usableFrame(s)))
         }
+    }
+
+    private func updateMonitors() {
+        model.setMonitors(monitorList())
+    }
+
+    /// Picks up work-area changes that come without a screen notification (menu bar or Dock
+    /// hiding): moves the shell and re-tiles only when something changed.
+    private func refreshMonitors() {
+        shell?.layout()
+        let list = monitorList()
+        let same = list.count == model.monitors.count && zip(list, model.monitors).allSatisfy { $0.id == $1.id && $0.frame == $1.frame }
+        guard !same else { return }
         model.setMonitors(list)
+        apply()
     }
 
     private func track(_ app: NSRunningApplication) {
@@ -452,7 +497,10 @@ final class WindowManager {
         case kAXTitleChangedNotification:
             guard let id = el.windowID, let w = windows[id] else { return }
             w.title = el.string(kAXTitleAttribute) ?? w.title
-            if id == model.focused { events?.emit("activewindow", "\(w.appName),\(w.title)") }
+            if id == model.focused {
+                events?.emit("activewindow", "\(w.appName),\(w.title)")
+                updateShell()
+            }
 
         default:
             break
@@ -538,7 +586,8 @@ final class WindowManager {
                 let r = Rect(x: f.x, y: f.y, w: max(50, exact ? x : f.w + x), h: max(50, exact ? y : f.h + y)).rounded()
                 withoutEnhancedUI(w.appElement) { w.element.setSize(CGSize(width: r.w, height: r.h)) }
                 lastSet[id] = (r, Date())
-            case .global(let action): log("shell action \(action): the desktop shell is Windows-only for now")
+            case .global(let action):
+                if let shell { shell.toggle(action) } else { log("shell action \(action): the shell is off (hyprmac { shell = true })") }
             case .reload: reload()
             case .quit: shutdown()
             }
@@ -656,12 +705,31 @@ final class WindowManager {
                 items[id] = .init(outer: Rect(x: f.x - bs, y: f.y - bs, w: f.w + 2 * bs, h: f.h + 2 * bs), active: active)
             }
         }
-        borders.update(items, config: model.config)
+        var c = model.config
+        if let shell, !c.bordersExplicit {
+            // Borders follow the shell's colors unless the config sets them.
+            let sc = shell.model.scheme
+            c.activeBorder = BorderColor(colors: [sc.primary])
+            c.inactiveBorder = BorderColor(colors: [sc.surfaceContainerHighest])
+        }
+        borders.update(items, config: c)
     }
 
     private func updateUI() {
         statusBar?.update()
+        updateShell()
         emitEvents()
+    }
+
+    private func updateShell() {
+        guard let shell else { return }
+        var shown: [String: Int] = [:]
+        for m in model.monitors { shown[m.id] = m.workspace }
+        let focusedScreen = model.focusedMonitor < model.monitors.count ? model.monitors[model.focusedMonitor].id : ""
+        let occupied = Set(model.workspaces.values.filter { !$0.isEmpty }.map(\.id))
+        let w = model.focused.flatMap { model.isVisible($0) ? windows[$0] : nil }
+        shell.update(workspaces: shown, focusedScreen: focusedScreen, occupied: occupied,
+                     app: w?.appName ?? "", title: w?.title ?? "", pid: w?.pid)
     }
 
     private func emitEvents() {
@@ -788,6 +856,12 @@ final class WindowManager {
             (model.windowWorkspace[w.id] ?? 0, w.appName, w.title, model.isFloating(w.id))
         }.sorted { ($0.ws, $0.app) < ($1.ws, $1.app) }
     }
+}
+
+extension WindowManager: ShellActions {
+    func shellDispatch(_ dispatcher: String, _ arg: String) { run(dispatcher, arg) }
+    func shellMenu() -> NSMenu { shellMenuSource.make() }
+    func shellQuit() { shutdown() }
 }
 
 func hex(_ id: WindowID) -> String { "0x" + String(id, radix: 16) }

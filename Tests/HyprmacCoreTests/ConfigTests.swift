@@ -6,9 +6,28 @@ import Testing
         let c = ConfigParser.parse(DefaultConfig.text)
         #expect(c.errors.isEmpty, "\(c.errors)")
         #expect(c.binds.count > 30)
-        #expect(c.gapsOut == Insets(all: 12))
+        #expect(c.gapsOut == Insets(all: 10))
         #expect(c.preserveSplit)
         #expect(c.rules.count == 2)
+        #expect(c.shell && c.hideTaskbar && c.scheme == "auto")
+        #expect(!c.bordersExplicit)
+    }
+
+    @Test func shellOptions() {
+        let c = ConfigParser.parse("""
+        hyprmac {
+            shell = false
+            hide_menubar = false
+            scheme = rgb(cba6f7)
+        }
+        general {
+            col.active_border = rgb(ff0000)
+        }
+        """)
+        #expect(c.errors.isEmpty, "\(c.errors)")
+        #expect(!c.shell && !c.hideTaskbar && c.scheme == "rgb(cba6f7)")
+        #expect(c.bordersExplicit)
+        #expect(!ConfigParser.parse("hyprmac {\n scheme = purple\n}").errors.isEmpty)
     }
 
     @Test func sectionsVariablesAndColonKeys() {

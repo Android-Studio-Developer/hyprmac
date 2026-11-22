@@ -13,6 +13,8 @@ usage: hyprmac [--config PATH]      run the window manager
        hyprmac --check-config [PATH] parse the config and print problems
        hyprmac --print-default-config
        hyprmac --list                 show windows hyprmac would manage (moves nothing)
+       hyprmac --restore-menubar      put the menu bar setting back (if hyprmac was killed)
+       hyprmac --render-shell OUT.png [--open dashboard|session]   draw the shell to an image
        hyprmac --version
 
 Config: \(Config.defaultPath) (created on first run). Control: hyprmacctl.
@@ -101,6 +103,16 @@ if args.contains("--list") {
         print("ws \(w.ws)  \(w.floating ? "float" : "tile ")  \(w.app)  —  \(w.title)")
     }
     exit(0)
+}
+
+if args.contains("--restore-menubar") {
+    MenuBarHider.restore()
+    print("menu bar setting restored")
+    exit(0)
+}
+
+if args.contains("--preview-shell") || args.contains("--render-shell") {
+    ShellPreview.main(args: args, config: ConfigParser.load(path: configPath))
 }
 
 // Another instance already running?
