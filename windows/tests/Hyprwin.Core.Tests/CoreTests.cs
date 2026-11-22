@@ -96,8 +96,10 @@ public class ConfigTests
     [Fact]
     public void SourceIncludesRelativeFile()
     {
-        var files = new Dictionary<string, string> { [Path.Combine("/cfg", "extra.conf")] = "bind = ALT, T, exec, kitty\ngeneral:border_size = 5" };
-        var c = ConfigParser.Parse("source = extra.conf\n", "/cfg/hyprland.conf", f => files.GetValueOrDefault(f));
+        // Separators differ per OS ("/cfg\extra.conf" on Windows), so match loosely.
+        const string extra = "bind = ALT, T, exec, kitty\ngeneral:border_size = 5";
+        var c = ConfigParser.Parse("source = extra.conf\n", "/cfg/hyprland.conf",
+            f => f.Replace('\\', '/').EndsWith("/cfg/extra.conf") ? extra : null);
         Assert.Empty(c.Errors);
         Assert.Equal("t", c.Binds[0].Key);
         Assert.Equal(5, c.BorderSize);
