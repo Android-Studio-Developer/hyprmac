@@ -1,6 +1,7 @@
 # hyprmac
 
-> Windows version: **hyprwin**, in [`windows/`](windows/README.md). Same config, rices and CLI.
+> Windows version: **hyprwin**, in [`windows/`](windows/README.md): same config, rices and CLI, plus a
+> Caelestia-style desktop shell. Install: `irm https://kelus.org/hyprwin.ps1 | iex`
 
 Hyprland-style tiling window manager for macOS. Reads `hyprland.conf` and Hyprland's newer Lua
 config (`hyprland.lua`): dwindle and master layouts, gaps, gradient borders, workspaces, keybinds,

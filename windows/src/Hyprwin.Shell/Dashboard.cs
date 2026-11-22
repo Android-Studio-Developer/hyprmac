@@ -46,7 +46,17 @@ sealed class Dashboard : EdgePanel
         grid.Children.Add(Card(left, 18));
 
         // Media.
-        media = Card(Ui.Label("Nothing playing", S.OnSurfaceVariant, 13));
+        var idle = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+        idle.Children.Add(new Border
+        {
+            Width = 120, Height = 120, CornerRadius = new CornerRadius(16), Background = Ui.Brush(S.SurfaceContainerHigh),
+            Child = Ui.Icon(Ui.Glyph.Music, S.Outline, 34),
+        });
+        var none = Ui.Label("Nothing playing", S.OnSurfaceVariant, 13);
+        none.HorizontalAlignment = HorizontalAlignment.Center;
+        none.Margin = new Thickness(0, 12, 0, 0);
+        idle.Children.Add(none);
+        media = Card(idle);
         Grid.SetColumn(media, 2);
         grid.Children.Add(media);
         _ = LoadMediaAsync();

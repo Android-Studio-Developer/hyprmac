@@ -5,13 +5,24 @@ or Hyprland Lua `hyprland.lua`), same dispatchers, same `rice` command. The core
 Lua shim, dwindle/master layouts, workspaces, rices) is a C# port of the Swift core, with the same
 tests; the `hl.*` Lua shim is literally the same file (`../shared/hl-prelude.lua`).
 
-> Status: 0.1.0, early. Core tests pass on macOS and Windows; CI starts it on a Windows runner.
+![hyprwin desktop](../docs/hyprwin-desktop.jpg)
+
+> Status: 0.2.0, early. Core tests pass on macOS and Windows; CI starts it on a Windows runner.
 > It has not been used day-to-day on a real desktop yet.
 
 ## Install
 
-Needs the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
-(`winget install Microsoft.DotNet.DesktopRuntime.10`). Build:
+In PowerShell (no admin, nothing else to install):
+
+```powershell
+irm https://kelus.org/hyprwin.ps1 | iex
+```
+
+Options: `& ([scriptblock]::Create((irm https://kelus.org/hyprwin.ps1))) -Startup -Start` (start with
+Windows, start now), `-Uninstall`. It installs to `%LOCALAPPDATA%\Programs\hyprwin`, adds a Start menu
+entry and puts `hyprwinctl` on PATH. Run it again to update.
+
+Build it yourself instead (needs the .NET 10 SDK):
 
 ```powershell
 winget install Microsoft.DotNet.SDK.10
@@ -37,6 +48,38 @@ skipped. Everything in the main README's config section applies, with these diff
 - Borders: Windows 11 colors the real window border (first color of `col.active_border` /
   `col.inactive_border`); `border_size` can't change its width. Rounded corners follow `rounding`.
   Windows 10 has no colored borders.
+
+## Shell
+
+hyprwin comes with its own desktop shell, inspired by Caelestia's look (original code):
+
+- **Bar** on the left: launcher button, workspace pills (click to switch), the active window's title,
+  network and battery, clock (click for the dashboard), power (click for the session menu).
+- **Frame** around the screen in the bar's color; tiled windows sit inside it.
+- **Launcher** grows out of the bottom edge (`Alt+D`): installed apps with icons; start with `=` for
+  math or `>` to run a command.
+- **Dashboard** grows out of the top (`Alt+Shift+D`): clock, calendar, now playing (Spotify, browsers,
+  Media Player) with controls, CPU / memory / disk.
+- **Session** menu on the right (`Alt+Shift+P`): lock, sleep, sign out, restart, shut down (restart
+  and shut down need a second click), quit hyprwin.
+- **Colors** come from your wallpaper (Material-style dark scheme) and follow it when it changes; window
+  borders use them too unless the config sets `col.active_border`.
+- The **taskbar** auto-hides while hyprwin runs and comes back when it quits.
+
+| Launcher | Dashboard | Session |
+|---|---|---|
+| ![launcher](../docs/hyprwin-launcher.jpg) | ![dashboard](../docs/hyprwin-dashboard.jpg) | ![session](../docs/hyprwin-session.jpg) |
+
+```ini
+hyprwin {
+    shell = true          # false = tiling only
+    hide_taskbar = true
+    scheme = auto         # or a seed color: rgb(89b4fa)
+}
+bind = ALT, D, global, shell:launcher      # also: shell:dashboard, shell:session
+```
+
+Caelestia-style binds (`global, caelestia:launcher`) work too.
 
 ## How it works
 

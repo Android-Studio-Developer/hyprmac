@@ -2,7 +2,7 @@ namespace Hyprwin.Core;
 
 public static class HyprwinInfo
 {
-    public const string Version = "0.1.0";
+    public const string Version = "0.2.0";
 
     static string User => Environment.UserName.Replace(' ', '_');
     /// <summary>Request/response pipe used by hyprwinctl (like Hyprland's .socket.sock).</summary>

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum HyprmacInfo {
-    public static let version = "0.1.0"
+    public static let version = "0.2.0"
 
     /// Directory for the control sockets: /tmp/hyprmac-<uid>/
     public static func runtimeDir(uid: UInt32) -> String { "/tmp/hyprmac-\(uid)" }
